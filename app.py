@@ -6,7 +6,7 @@ import concurrent.futures
 
 Website_URI = "https://apps.who.int"
 counter = 1
-Scape_URl = f'https://apps.who.int/iris/discover?rpp=10&etal=0&query=indigenous+communities&group_by=none&page=1&filtertype_0=dateIssued&filtertype_1=publisher&filtertype_2=iso&filter_relational_operator_1=equals&filter_relational_operator_0=equals&filter_2=English&filter_1=World+Health+Organization&filter_relational_operator_2=equals&filter_0=2021'
+Scape_URl = 'https://apps.who.int/iris/discover?rpp=10&etal=0&query=Gender+Equality%2C+Human+Rights+%26+Health+Equity&scope=/&group_by=none&page=1&filtertype_0=dateIssued&filtertype_1=publisher&filtertype_2=iso&filter_relational_operator_1=equals&filter_relational_operator_0=equals&filter_2=English&filter_1=World+Health+Organization&filter_relational_operator_2=equals&filter_0=2021'
 
 # Function to get all IRIS URL
 def list_IRIS_URL():
@@ -18,11 +18,9 @@ def list_IRIS_URL():
 
     print("Getting IRIS URL")
     IRIS_list = []
-    for page in range(1, 35):
+    for page in range(1, 40):
         url = Scape_URl.replace("page=1", f"page={page}")
         IRIS_list.extend(get_page_uri(url))
-        if page==5:
-            break
     print("Total IRIS: ", len(IRIS_list))
     return IRIS_list
 
@@ -35,7 +33,10 @@ def get_meta_data(IRIS_URL):
     meta_data = {}
     for row in meta_data_table.find_all("tr"):
         td_list = row.find_all("td")
-        meta_data[td_list[0].text] = td_list[1].text
+        if td_list[0].text in meta_data:
+            meta_data[td_list[0].text] = td_list[1].text+", "+ meta_data[td_list[0].text]
+        else:
+            meta_data[td_list[0].text] = td_list[1].text
     file = soup.find("div", class_="file-wrapper row").find("a").attrs['href']
     meta_data['file'] = Website_URI+file
     print("Completed meta data scraping for: ", IRIS_URL)
@@ -54,5 +55,5 @@ def main():
         try:
             csv_writer.writerow([result.index(meta_data)+1,"2021",meta_data['dc.title'],meta_data['dc.contributor.author'], meta_data['dc.type'],"","",meta_data['file'],meta_data['dc.identifier.uri']])
         except Exception as e:
-            print("Error while writing: ", meta_data, e)
+            print("Error while writing: ", meta_data['dc.identifier.uri'])
 main()
