@@ -63,7 +63,16 @@ def main():
     csv_writer.writerow(["S.No", "Year", "Title", "WHO Setting", "Type of Document", "Department", "Technical Team", " DOCUMENT LINK", "link to search page"])
     for meta_data in result:
         try:
-            csv_writer.writerow([result.index(meta_data)+1,"2021",meta_data['dc.title'],meta_data['dc.contributor.author'], meta_data['dc.type'],"","",meta_data['file'],meta_data['dc.identifier.uri']])
+            csv_writer.writerow([
+                result.index(meta_data)+1,
+                query_params['filter_1'][0],
+                meta_data['dc.title'],
+                "HQ" if meta_data['dc.contributor.author'] == "World Health Organization" else meta_data['dc.contributor.author'],
+                meta_data['dc.type'],
+                "","",
+                meta_data['file'],
+                meta_data['dc.identifier.uri']
+            ])
         except Exception as e:
             errored += 1
             print("\n\nError while writing: ", meta_data['dc.identifier.uri'])
