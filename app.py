@@ -3,10 +3,17 @@ from requests import get
 import json, time, csv
 from pprint import pprint
 import concurrent.futures
+from urllib.parse import urlparse, parse_qs
 
+
+# To be changed...
 Website_URI = "https://apps.who.int"
-counter = 1
-Scape_URl = 'https://apps.who.int/iris/discover?rpp=10&etal=0&query=Gender+Equality%2C+Human+Rights+%26+Health+Equity&scope=/&group_by=none&page=1&filtertype_0=dateIssued&filtertype_1=publisher&filtertype_2=iso&filter_relational_operator_1=equals&filter_relational_operator_0=equals&filter_2=English&filter_1=World+Health+Organization&filter_relational_operator_2=equals&filter_0=2021'
+Scape_URl = 'https://apps.who.int/iris/discover?filtertype_1=dateIssued&filter_relational_operator_1=equals&filter_1=2021&filtertype_2=publisher&filter_relational_operator_2=equals&filter_2=World+Health+Organization&filtertype_3=iso&filter_relational_operator_3=equals&filter_3=English&filtertype_4=type&filter_relational_operator_4=equals&filter_4=Technical+documents&submit_apply_filter=&query=Tribal+communities'
+total_pages = 1
+
+# Get query params
+parsed_url = urlparse(Scape_URl)
+query_params = parse_qs(parsed_url.query)
 
 # Function to get all IRIS URL
 def list_IRIS_URL():
@@ -18,7 +25,7 @@ def list_IRIS_URL():
 
     print("Getting IRIS URL")
     IRIS_list = []
-    for page in range(1, 40):
+    for page in range(1, total_pages+1):
         url = Scape_URl.replace("page=1", f"page={page}")
         IRIS_list.extend(get_page_uri(url))
     print("Total IRIS: ", len(IRIS_list))
@@ -26,7 +33,6 @@ def list_IRIS_URL():
 
 # Function to get meta data for each IRIS
 def get_meta_data(IRIS_URL):
-    print("Getting Meta Data for: ", IRIS_URL)
     content = get(IRIS_URL)
     soup = BeautifulSoup(content.text, 'html.parser')
     meta_data_table = soup.find("table")
@@ -39,21 +45,27 @@ def get_meta_data(IRIS_URL):
             meta_data[td_list[0].text] = td_list[1].text
     file = soup.find("div", class_="file-wrapper row").find("a").attrs['href']
     meta_data['file'] = Website_URI+file
-    print("Completed meta data scraping for: ", IRIS_URL)
     return meta_data
 
 # Main function
 def main():
     list_IRIS = list_IRIS_URL()
+    total_items = len(list_IRIS)
+    errored = 0
     time.sleep(5)
+    print(f"Scrapping {total_items} IRIS...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             result = list(executor.map(get_meta_data, list_IRIS))
-    f = open("IRIS_336.csv", "w", newline="")
+    current_time = time.strftime("%H:%M:%S")
+    fileName = f"DataFiles/{query_params['query'][0]}_{query_params['filter_1'][0]}_{current_time}.csv"
+    f = open(fileName, "w", newline="")
     csv_writer = csv.writer(f)
     csv_writer.writerow(["S.No", "Year", "Title", "WHO Setting", "Type of Document", "Department", "Technical Team", " DOCUMENT LINK", "link to search page"])
     for meta_data in result:
         try:
             csv_writer.writerow([result.index(meta_data)+1,"2021",meta_data['dc.title'],meta_data['dc.contributor.author'], meta_data['dc.type'],"","",meta_data['file'],meta_data['dc.identifier.uri']])
         except Exception as e:
-            print("Error while writing: ", meta_data['dc.identifier.uri'])
+            errored += 1
+            print("\n\nError while writing: ", meta_data['dc.identifier.uri'])
+    print(f'\n\nScraped {total_items - errored}/{total_items}\nFile saved as: "{fileName}"')
 main()
